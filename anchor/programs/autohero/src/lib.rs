@@ -1,29 +1,35 @@
 use anchor_lang::prelude::*;
-use std::mem;
+mod hero;
+mod event_storage;
+mod errors;
+
 
 // This is your program's public key and it will update
 // automatically when you build the project.
-declare_id!("9V5ggVeRYDwckX9xdhvH9mx7E5sZRcZ5dYiof7mDqkTf");
+declare_id!("DCXeBRXR5mYGomEe8tSrnsWLu2SW8G6VxAU5bu3eNx9D");
 
 #[program]
-mod hello_anchor {
+mod autohero {
     use super::*;
-    pub fn initialize(ctx: Context<Initialize>, data: u64) -> Result<()> {
+    pub fn initialize(ctx: Context<InitializeContext>, random: u64) -> Result<()> {
         let now: i64 = Clock::get().unwrap().unix_timestamp;
         ctx.accounts.new_account.owner = ctx.accounts.signer.key();
+        ctx.accounts.new_account.random = random;
         ctx.accounts.new_account.created = now;
         ctx.accounts.new_account.additional_exp = 0;
         ctx.accounts.new_account.base_attack = 1;
-        ctx.accounts.new_account.base_defence = 1;
+        ctx.accounts.new_account.base_defense = 1;
         ctx.accounts.new_account.delta_hitpoints = 0;
         ctx.accounts.new_account.delta_hitpoints_update = now;
-
-        msg!("Changed data to: {}!", data); // Message will show up in the tx logs
+        msg!("Owner: {}", ctx.accounts.new_account.owner);
+        msg!("Hero: {}", ctx.accounts.new_account.key());
+        msg!("Created: {}", random);
         Ok(())
     }
 
-    pub fn info(ctx: Context<Exp>) -> Result<()> {
+    pub fn info(ctx: Context<InfoContext>) -> Result<()> {
         msg!("Exp: {}", ctx.accounts.hero.exp());
+        msg!("Selector: {}", ctx.accounts.hero.selector());
         msg!("Level: {}", ctx.accounts.hero.level());
         msg!("Attack: {}", ctx.accounts.hero.attack());
         msg!("Defense: {}", ctx.accounts.hero.defense());
@@ -31,75 +37,119 @@ mod hello_anchor {
         msg!("Max hitpoints: {}", ctx.accounts.hero.max_hitpoints());
         Ok(())
     }
-}
 
-#[account]
-pub struct Hero {
-    pub owner: Pubkey,
-
-    pub created: i64,
-    pub additional_exp: u32,
-
-    pub base_attack: i32,
-    pub base_defence: i32,
-
-    pub delta_hitpoints: i32,
-    pub delta_hitpoints_update: i64,
-}
-
-pub const HERO_SIZE: usize = mem::size_of::<Hero>();
-pub const SECONDS_IN_DAY: f64 = 60.0 * 60.0 * 24.0;
-
-impl Hero {
-    pub fn exp(&self) -> i64 {
-        return Clock::get().unwrap().unix_timestamp - self.created + self.additional_exp as i64;
+    pub fn initialize_storage(ctx: Context<InitializeStorageContext>) -> Result<()> {
+        ctx.accounts.events_storage.owner = ctx.accounts.signer.key();
+        ctx.accounts.events_storage.number = 0;
+        Ok(())
     }
 
-    pub fn level(&self) -> f64 {
-        let days: f64 = (self.exp() as f64) / SECONDS_IN_DAY;
-        return 10.0 * (days + 1.0).log10() + 1.0;
-    }
-
-    pub fn level_int(&self) -> i32 {
-        return self.level() as i32;
-    }
-
-    pub fn attack(&self) -> i32 {
-        return self.base_attack + self.level_int();
-    }
-
-    pub fn defense(&self) -> i32 {
-        return self.base_defence + self.level_int();
-    }
-
-    pub fn max_hitpoints(&self) -> i32 {
-        return self.level_int() * 10;
-    }
-
-    pub fn hitpoints(&self) -> i32 {
+    pub fn add_event(ctx: Context<AddEventContext>, message: u128) -> Result<()> {
         let now: i64 = Clock::get().unwrap().unix_timestamp;
-        let max_hits: i32 = self.max_hitpoints();
-        let heal: i32 = ((now - self.delta_hitpoints_update) / 10) as i32;
-        let current_hits: i32 = max_hits - self.delta_hitpoints + heal;
-        let result: i32 = if current_hits > max_hits {
-            max_hits
-        } else {
-            current_hits
+        let mut index: u8 = ctx.accounts.events_storage.number;
+        if index >= 10 {
+            index = 0;
+        }
+        ctx.accounts.events_storage.events[index as usize] = event_storage::Event {
+            timestamp: now,
+            message: message,
         };
-        return result;
+        ctx.accounts.events_storage.number = index + 1;
+        ctx.accounts.events_storage.total += 1;
+        Ok(())
     }
+
+    pub fn apply_event(ctx: Context<ApplyEventContext>, message: u128) -> Result<()> {
+        let event = ctx.accounts.events_storage.get_message(message).unwrap();
+
+        // Check if the event can be applied
+        let hash = event.selector() ^ ctx.accounts.hero.selector();
+        let count = count_ones(hash);
+        if count != event.num() {
+            msg!(
+                "Debug: event selector {}, hero selector {}, hash {}, event num {}, count {}",
+                event.selector(),
+                ctx.accounts.hero.selector(),
+                hash,
+                event.num(),
+                count
+            );
+
+            return err!(errors::AutoHeroError::EventCannotbeApplied);
+        }
+
+        // Check if the event is already applied
+        if ctx.accounts.hero.add_event(event.message) == false {
+            return err!(errors::AutoHeroError::EventIsApplied);
+        }
+
+        msg!("hero: {}", ctx.accounts.hero.key());
+
+        // Apply the event
+        match event.category() {
+            0 => {
+                msg!("attack: {}", event.attack());
+                ctx.accounts.hero.base_attack += event.attack() as i32;
+            }
+            1 => {
+                msg!("defense: {}", event.defense());
+                ctx.accounts.hero.base_defense += event.defense() as i32;
+            }
+            _ => {}
+        }
+
+        Ok(())
+    }
+}
+
+
+fn count_ones(number: u8) -> u8 {
+    // Convert the number to its text representation
+    let text = format!("{:b}", number);
+    // Iterate through each character in the string and count how many '1's there are
+    text.chars().filter(|&c| c == '1').count() as u8
 }
 
 #[derive(Accounts)]
-pub struct Exp<'info> {
-    pub hero: Account<'info, Hero>,
+pub struct InfoContext<'info> {
+    pub hero: Account<'info, hero::Hero>,
     pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct Initialize<'info> {
-    #[account(init, payer = signer, space = 8 + HERO_SIZE)]
-    pub new_account: Account<'info, Hero>,
+pub struct InitializeContext<'info> {
+    #[account(init, payer = signer, space = 8 + hero::HERO_SIZE)]
+    pub new_account: Account<'info, hero::Hero>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeStorageContext<'info> {
+    #[account(init, payer = signer, space = 8 + event_storage::EVENT_STORAGE_SIZE)]
+    pub events_storage: Account<'info, event_storage::EventStorage>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+
+#[derive(Accounts)]
+pub struct AddEventContext<'info> {
+    #[account(mut)]
+    pub events_storage: Account<'info, event_storage::EventStorage>,
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+
+#[derive(Accounts)]
+pub struct ApplyEventContext<'info> {
+    #[account(mut)]
+    pub hero: Account<'info, hero::Hero>,
+    pub events_storage: Account<'info, event_storage::EventStorage>,
     #[account(mut)]
     pub signer: Signer<'info>,
     pub system_program: Program<'info, System>,

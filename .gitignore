@@ -1,0 +1,9 @@
+test-ledger/
+third_party/
+venv/
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+.env*
+k8s/

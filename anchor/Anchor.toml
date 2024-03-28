@@ -7,12 +7,19 @@ skip-lint = false
 [programs.localnet]
 autohero = "9V5ggVeRYDwckX9xdhvH9mx7E5sZRcZ5dYiof7mDqkTf"
 
+[programs.devnet]
+autohero = "9V5ggVeRYDwckX9xdhvH9mx7E5sZRcZ5dYiof7mDqkTf"
+
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "devnet"
 wallet = "/Users/pomeschenkoanton/.config/solana/id.json"
 
 [scripts]
 test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+storage = "npx tsx scripts/storage.ts"
+add_event = "npx tsx scripts/add_event.ts"
+events = "npx tsx scripts/events.ts"
+apply_event = "npx tsx scripts/apply_event.ts"

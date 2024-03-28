@@ -1,2 +1,15 @@
+.PHONY : deploy copy
+
+build:
+	anchor build
+
 deploy:
-	anchor build && anchor deploy
+	$(MAKE) build
+	anchor deploy
+	$(MAKE) copy
+
+copy:
+	cp target/types/* ../src/src/types
+
+program_id:
+	anchor keys list
