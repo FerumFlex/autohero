@@ -1,27 +1,26 @@
+include .env
+
 run:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; uvicorn main:app --reload --use-colors --port 4000
+	poetry run uvicorn main:app --reload --use-colors --port 4000
 
 ### alembic
 revision:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; alembic revision --autogenerate -m $(filter-out $@,$(MAKECMDGOALS))
+	poetry run alembic revision --autogenerate -m $(filter-out $@,$(MAKECMDGOALS))
 
 upgrade:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; alembic upgrade head
+	poetry run alembic upgrade head
 
 downgrade:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; alembic downgrade -1
+	poetry run alembic downgrade -1
 
 history:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; alembic history
-
-generate:
-	anchorpy client-gen ../anchor/target/idl/autohero.json autohero/
+	poetry run alembic history
 
 add_event:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; python3 add_event.py
-
-chain:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; python3 chain.py
+	poetry run python3 add_event.py --hero rSem2cgrfgbQPuYZi2hJ2yrJNC3dZHkvHSqVV7L26At --category 3
 
 cron:
-	set -o allexport; source .env; set +o allexport; . .venv/bin/activate; python3 scheduler.py
+	poetry run python3 scheduler.py
+
+metadata:
+	poetry run uvicorn metadata:app --reload --use-colors --port 5000

@@ -1,20 +1,24 @@
 [toolchain]
+anchor_version = "0.31.1"
 
 [features]
 seeds = false
 skip-lint = false
 
 [programs.localnet]
-autohero = "9V5ggVeRYDwckX9xdhvH9mx7E5sZRcZ5dYiof7mDqkTf"
+autohero = "BFaEX2hJaeRmBrS5rBUBgjEKdDmsnfEVxJSKpLSHzdRN"
 
 [programs.devnet]
-autohero = "9V5ggVeRYDwckX9xdhvH9mx7E5sZRcZ5dYiof7mDqkTf"
+autohero = "BFaEX2hJaeRmBrS5rBUBgjEKdDmsnfEVxJSKpLSHzdRN"
+
+[programs.mainnet]
+autohero = "BFaEX2hJaeRmBrS5rBUBgjEKdDmsnfEVxJSKpLSHzdRN"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "/Users/pomeschenkoanton/.config/solana/id.json"
 
 [scripts]
@@ -23,3 +27,28 @@ storage = "npx tsx scripts/storage.ts"
 add_event = "npx tsx scripts/add_event.ts"
 events = "npx tsx scripts/events.ts"
 apply_event = "npx tsx scripts/apply_event.ts"
+info = "npx tsx scripts/info.ts"
+mint = "npx tsx scripts/mint.ts"
+
+[dependencies]
+anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+anchor-spl = { version = "0.31.1", features = ["metadata"] }
+
+[test]
+upgradeable = true
+startup_wait = 5000
+shutdown_wait = 2000
+
+[test.validator]
+bind_address = "0.0.0.0"
+url = "https://api.mainnet-beta.solana.com"
+ledger = ".anchor/test-ledger"
+rpc_port = 8899
+args = [
+    "--limit-ledger-size", "100000",
+    "--log",
+]
+clone = [
+    { address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s" },
+    { address = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" }
+]

@@ -8,4 +8,10 @@ pub enum AutoHeroError {
 
     #[msg("Event is applied")]
     EventIsApplied,
+
+    #[msg("Invalid royalty wallet address")]
+    InvalidRoyaltyWallet,
+
+    #[msg("Royalty payment is too low")]
+    InsufficientRoyaltyPayment,
 }
